@@ -36,6 +36,8 @@ scanzinLAN/
 
 ## วิธีติดตั้งและรัน
 
+> วิธีการใช้แบบ step-by-step [Click here to view HowToScanz.md](./HowToScanz.md)
+
 ### ข้อกำหนดเบื้องต้น
 - Python 3.8+
 - Node.js 18+
