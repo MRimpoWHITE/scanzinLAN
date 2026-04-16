@@ -12,7 +12,7 @@
 | Frontend | React 19 + Vite + TailwindCSS |
 | Backend | FastAPI (Python) |
 | Scanning | Scapy (ARP) |
-| Vendor Lookup | mac-vendor-lookup |
+| Vendor Lookup | IEEE OUI database (local cache) |
 
 ---
 
@@ -22,6 +22,7 @@
 scanzinLAN/
 ├── backend/
 │   ├── main.py          # FastAPI server + ARP scan logic
+│   ├── oui_cache.json   # OUI vendor database (สร้างอัตโนมัติครั้งแรก)
 │   └── requirements.py  # Python dependencies
 └── frontend/
     ├── src/
@@ -52,7 +53,7 @@ python -m venv .venv
 # source .venv/bin/activate  # Linux/macOS
 
 # ติดตั้ง dependencies
-pip install fastapi uvicorn scapy netifaces mac-vendor-lookup
+pip install fastapi uvicorn scapy netifaces
 
 # รัน server
 python main.py
@@ -77,7 +78,7 @@ Frontend จะขึ้นที่ `http://localhost:5173`
 
 | Endpoint | Method | คำอธิบาย |
 |----------|--------|----------|
-| `/api/scan` | GET | สแกนอุปกรณ์ทั้งหมดใน LAN (subnet /24) |
+| `/api/scan` | GET | สแกนอุปกรณ์ทั้งหมดใน LAN (ตาม subnet จริงของ interface) |
 
 **Response ตัวอย่าง:**
 ```json
@@ -103,6 +104,7 @@ Frontend จะขึ้นที่ `http://localhost:5173`
 
 - สแกนอุปกรณ์ใน LAN ด้วย ARP packet
 - แสดง IP, MAC Address, Vendor/ยี่ห้อ, และสถานะ
+- ระบุยี่ห้ออุปกรณ์จาก IEEE OUI database (ดาวน์โหลดครั้งแรก แล้วทำงานออฟไลน์ได้)
 - รองรับ 2 ภาษา: ไทย / อังกฤษ
 - Fallback เป็น mock data เมื่อสแกนไม่เจออุปกรณ์
 
@@ -110,6 +112,7 @@ Frontend จะขึ้นที่ `http://localhost:5173`
 
 ## หมายเหตุ
 
-- การสแกนใช้ ARP ดังนั้นเห็นได้เฉพาะอุปกรณ์ใน subnet เดียวกัน
+- การสแกนใช้ ARP และคำนวณ network range จาก IP + netmask จริงของ interface รองรับทุก subnet เช่น /23, /24
 - Scapy บน Windows ต้องการ [Npcap](https://npcap.com/) ติดตั้งก่อน
-- ครั้งแรกที่รัน อาจช้าเพราะต้อง update vendor database
+- **ครั้งแรกที่รัน** ต้องมีอินเทอร์เน็ตเพื่อดาวน์โหลด OUI database (~5MB) → บันทึกเป็น `oui_cache.json` แล้วใช้งานออฟไลน์ได้ตลอด
+- `oui_cache.json` ถูก ignore ใน git — แต่ละเครื่องจะดาวน์โหลดเองอัตโนมัติ

@@ -39,3 +39,12 @@ coverage/
 
 # 8. TypeScript
 *.tsbuildinfo
+
+# 9. Python
+.venv/
+
+__pycache__/
+*.pyc
+
+# 10. OUI vendor cache (ดาวน์โหลดใหม่ได้อัตโนมัติตอนรัน)
+oui_cache.json

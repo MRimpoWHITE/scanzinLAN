@@ -1,29 +1,58 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from scapy.all import ARP , Ether , srp
-import random
 import netifaces
-from mac_vendor_lookup import MacLookup
+import ipaddress
+import urllib.request
+import json
+import os
 
 app = FastAPI()
 
-vendor_lookup = MacLookup()
-try:
-    vendor_lookup.update_vendors()
-except:
-    pass
+# ---------- OUI Vendor Database (local cache) ----------
+OUI_CACHE_PATH = os.path.join(os.path.dirname(__file__), "oui_cache.json")
+OUI_DOWNLOAD_URL = "https://maclookup.app/downloads/json-database/get-db"
 
-def get_vendor(mac):
+def load_vendor_db() -> dict:
+    """โหลด OUI database จาก local cache ถ้าไม่มีให้ดาวน์โหลดก่อน"""
+    if os.path.exists(OUI_CACHE_PATH):
+        print("[OUI] โหลด vendor database จาก local cache...")
+        with open(OUI_CACHE_PATH, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+        # แปลงเป็น dict: {"AABBCC": "Vendor Name"} เพื่อ O(1) lookup
+        return {
+            entry["macPrefix"].replace(":", "").upper(): entry["vendorName"]
+            for entry in raw
+            if "macPrefix" in entry and "vendorName" in entry
+        }
+
+    print("[OUI] ไม่พบ local cache — กำลังดาวน์โหลด OUI database...")
     try:
-        mac_lookup = MacLookup()
-
-        mac_lookup.update_vendors()
-        
-        # ค้นหา vendor
-        vendor = mac_lookup.lookup(mac)
-        return vendor
+        req = urllib.request.Request(OUI_DOWNLOAD_URL, headers={"User-Agent": "ScanzinLAN/1.0"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            raw = json.loads(resp.read().decode("utf-8"))
+        with open(OUI_CACHE_PATH, "w", encoding="utf-8") as f:
+            json.dump(raw, f)
+        print(f"[OUI] ดาวน์โหลดสำเร็จ บันทึก {len(raw):,} รายการลง {OUI_CACHE_PATH}")
+        return {
+            entry["macPrefix"].replace(":", "").upper(): entry["vendorName"]
+            for entry in raw
+            if "macPrefix" in entry and "vendorName" in entry
+        }
     except Exception as e:
-        return f"Unknown Device ({e})"
+        print(f"[OUI] ดาวน์โหลดไม่ได้: {e} — vendor จะแสดงเป็น Unknown")
+        return {}
+
+# โหลดครั้งเดียวตอน startup
+VENDOR_DB: dict = load_vendor_db()
+
+def get_vendor(mac: str) -> str:
+    """ค้นหา vendor จาก MAC address โดยใช้ OUI prefix (3 bytes แรก)"""
+    try:
+        prefix = mac.replace(":", "").replace("-", "")[:6].upper()
+        return VENDOR_DB.get(prefix, "Unknown")
+    except Exception:
+        return "Unknown"
         
 #อนุญาตให้ frontend คุยกับ backend ได้
 app.add_middleware(
@@ -44,22 +73,26 @@ MOCK_DEVICES = [
 @app.get("/api/scan")
 async def scan():
     try:
-        # หา GW และ interface ที่่ใช่อยู่
+        # 1. หาข้อมูล Interface และ IP/Mask ของเรา
         gws = netifaces.gateways()
         interface = gws['default'][netifaces.AF_INET][1]
         addrs = netifaces.ifaddresses(interface)
         ip_info = addrs[netifaces.AF_INET][0]
         
-        # แปลงไอพีตัวเองให้เป็น วงเน็ต
-        ip_parts = ip_info['addr'].split('.')
-        network_range = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.0/24"
+        my_ip = ip_info['addr']
+        my_mask = ip_info['netmask'] # ดึง Subnet Mask มาด้วย (สำคัญ!)
 
-        # ip range ที่จะสแกน (ในที่นี้คือ /24 ของ IP ที่เราได้มา) หรือจะใช้ IP range อื่นก็ได้ตามต้องการ
-        ip_range = network_range
-        
+        # 2. คำนวณหา Network Range ที่แท้จริงจาก IP และ Mask
+        # วิธีนี้จะทำให้ถ้า Mask เป็น 255.255.254.0 (/23) มันจะรวม 20.x และ 21.x ให้เองอัตโนมัติ
+        network = ipaddress.IPv4Interface(f"{my_ip}/{my_mask}").network
+        ip_range = str(network) # จะได้ค่าอย่างเช่น "192.168.20.0/23"
+
+        # 3. รันการสแกนด้วย ip_range ที่คำนวณได้
         arp = ARP(pdst=ip_range)
         ether = Ether(dst="ff:ff:ff:ff:ff:ff")
         packet = ether/arp
+        
+        # เพิ่ม timeout นิดนึงเพราะ /23 วงมันใหญ่ (512 IP)
         result = srp(packet, timeout=3, verbose=False)[0]
 
         clients = []

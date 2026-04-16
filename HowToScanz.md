@@ -31,7 +31,7 @@
 
 4. ติดตั้ง dependencies (ทำครั้งแรกครั้งเดียวพอ)
    ```bash
-   pip install fastapi uvicorn scapy netifaces mac-vendor-lookup
+   pip install fastapi uvicorn scapy netifaces
    ```
 
 5. รัน server
@@ -43,6 +43,13 @@
    ```
    INFO:     Uvicorn running on http://0.0.0.0:8000
    ```
+
+   > **ครั้งแรกที่รัน** จะเห็น log เพิ่มขึ้นมา:
+   > ```
+   > [OUI] ไม่พบ local cache — กำลังดาวน์โหลด OUI database...
+   > [OUI] ดาวน์โหลดสำเร็จ บันทึก X,XXX รายการลง oui_cache.json
+   > ```
+   > ต้องมีอินเทอร์เน็ตครั้งแรกครั้งเดียว หลังจากนั้นทำงานออฟไลน์ได้เลย
 
 ---
 
@@ -73,7 +80,7 @@
 
 1. เข้าหน้าเว็บ `http://localhost:5173`
 2. กดปุ่ม **"Start Scan"** (หรือ **"เริ่มสแกน"** ถ้าเลือกภาษาไทย)
-3. รอสักครู่ — การสแกนใช้เวลาประมาณ 3–10 วินาที
+3. รอสักครู่ — การสแกนใช้เวลาประมาณ 3–10 วินาที (subnet ใหญ่กว่า /24 อาจนานขึ้น)
 4. ผลลัพธ์จะแสดงเป็นตาราง พร้อม IP, MAC, Vendor, และสถานะ
 
 ---
@@ -104,4 +111,5 @@
 | `เชื่อมต่อ API Backend ไม่ได้` | ตรวจสอบว่า `python main.py` รันอยู่ที่ port 8000 |
 | สแกนเจอแค่ mock data | รัน backend ในฐานะ Administrator |
 | `import scapy` error | ติดตั้ง Npcap ก่อนแล้วรีสตาร์ท terminal |
-| ผล vendor แสดง Unknown | ปกติถ้าไม่มีอินเทอร์เน็ตตอนดึง vendor database |
+| ผล vendor แสดง Unknown ทุกตัว | ยังไม่มี `oui_cache.json` — รัน backend ครั้งแรกโดยมีอินเทอร์เน็ต |
+| `[OUI] ดาวน์โหลดไม่ได้` | เช็คเน็ตแล้วรีสตาร์ท backend เพื่อโหลด cache ใหม่ |

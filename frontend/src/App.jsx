@@ -1,7 +1,11 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { Search, Monitor, ShieldAlert, Cpu } from "lucide-react";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
+
 import "./index.css";
+
 
 function App() {
   const [devices, setDevices] = useState([]);
@@ -23,7 +27,7 @@ function App() {
       noData: "No devices found. Press Start Scan to begin.",
     },
     th: {
-      title: "สแกนซินแลน",
+      title: "ScanzinLAN(สแกนซินแลน)",
       subtitle: "เครื่องมือตรวจสอบเครือข่ายสำหรับสายโปร",
       scanBtn: "เริ่มสแกน",
       scanningBtn: "กำลังสแกน...",
@@ -38,8 +42,45 @@ function App() {
     },
   };
 
-  const [lang, setLang] = useState("en"); 
-  const t = translations[lang]; 
+  const [lang, setLang] = useState("en");
+  const t = translations[lang];
+
+
+  const exportToEx = async (devices) => {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("ScanzinLAN Devices");
+
+  worksheet.columns = [
+    { header: "ID", key: "id", width: 10 },
+    { header: "Status", key: "status", width: 15 },
+    { header: "IP Address", key: "ip", width: 20 },
+    { header: "MAC Address", key: "mac", width: 25 },
+    { header: "Vendor", key: "vendor", width: 30 },
+  ];
+
+  devices.forEach((dev, idx) => {
+    worksheet.addRow({
+      id: idx + 1,
+      status: dev.status,
+      ip: dev.ip,
+      mac: dev.mac,
+      vendor: dev.vendor || "Unknown",
+    });
+  });
+
+  worksheet.getRow(1).font = { bold: true };
+  worksheet.getRow(1).alignment = { horizontal: "center" };
+  worksheet.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF3B82F6" },
+  };
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), `ScanzinLAN_Report_${new Date().toLocaleString()}.xlsx`);
+  
+};
+
 
   const scanNetwork = async () => {
     setLoading(true);
@@ -58,7 +99,7 @@ function App() {
   return (
     <div className="min-h-screen bg-black text-slate-100 p-8 font-sans">
       {/* Header */}
-      <div className="flex gap-2">
+      <div className="flex ">
         <button
           onClick={() => setLang("th")}
           className={`px-3 py-1 rounded text-xs font-bold transition-all ${lang === "th" ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400"}`}
@@ -71,18 +112,23 @@ function App() {
         >
           EN
         </button>
+        <button
+          onClick={() => exportToEx(devices)}
+          disabled={devices.length === 0}
+          className="ml-4 px-6 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 text-white font-bold rounded-lg transition-all"
+        >
+          Export Excel
+        </button>
       </div>
-      <div className="max-w-4xl mx-auto flex justify-between items-center mb-10">
+      <div className="max-w-4xl mx-auto flex justify-between items-center mb-10 mt-10">
         <div>
-          <h1 className="text-3xl font-bold text-blue-400 flex items-center gap-2">
+          <h1 className="text-3xl font-bold text-blue-400 flex items-center gap-2 ">
             <ShieldAlert size={32} /> {t.title}{" "}
             <span className="text-sm bg-blue-900 px-2 py-1 rounded text-blue-200">
               v1.0
             </span>
           </h1>
-          <p className="text-slate-400 mt-1">
-            {t.subtitle}
-          </p>
+          <p className="text-slate-400 mt-1">{t.subtitle}</p>
         </div>
 
         <button
