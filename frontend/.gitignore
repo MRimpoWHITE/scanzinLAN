@@ -11,31 +11,27 @@ jspm_packages/
 .env.production.local
 *.env.bak
 
-# 3. Next.js Build Output
 .next/
 out/
 build/
 
-# 4. OS Files (ไฟล์ขยะจากระบบปฏิบัติการ)
 .DS_Store
 Thumbs.db
 *.lprof
 
-# 5. Logs (ไฟล์บันทึก Error ต่างๆ)
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# 6. IDE Settings (การตั้งค่าส่วนตัวในโปรแกรมเขียนโค้ด)
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# 7. Testing
 coverage/
 .nyc_output
 
-# 8. TypeScript
 *.tsbuildinfo
+
+dist/
